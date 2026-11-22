@@ -60,7 +60,7 @@ header.solid{
 }
 .logo{font:700 22px/1 var(--display);text-decoration:none;letter-spacing:-.01em}
 .logo b{color:var(--accent);font-weight:700}
-nav.top{display:flex;align-items:center;gap:6px;margin-left:auto;margin-right:28px}
+nav.top{position:relative;display:flex;align-items:center;gap:6px;margin-left:auto;margin-right:28px}
 nav.top>.item{position:relative}
 nav.top>.item>a,nav.top>.item>button{display:flex;align-items:center;gap:8px;background:none;border:0;color:var(--ink);font:500 12px/1 var(--body);letter-spacing:.2em;text-transform:uppercase;text-decoration:none;padding:12px 16px;cursor:pointer;opacity:.85}
 nav.top>.item>a:hover,nav.top>.item>button:hover{opacity:1;color:var(--accent)}
@@ -92,16 +92,6 @@ nav.top .sep{width:1px;height:14px;background:var(--line)}
 .overlay .side h4{font:500 11px/1 var(--body);letter-spacing:.3em;text-transform:uppercase;color:var(--accent);margin:26px 0 10px}
 .overlay .side p{font-size:16px;line-height:1.6;color:var(--muted);font-weight:300}
 
-/* progress with subtle glow */
-.progress{
-  position:fixed;top:0;left:0;height:2.5px;
-  background:linear-gradient(90deg,#ff4d1c,#ff7a45);
-  box-shadow:0 0 12px rgba(255,77,28,0.75),0 0 3px #ff4d1c;
-  z-index:70;width:0;
-  transition:width .08s linear;
-  will-change:width;
-}
-
 /* ---------- SECTIONS ---------- */
 section{position:relative;min-height:100vh;min-height:100dvh;scroll-snap-align:start;display:flex;align-items:flex-end;overflow:hidden}
 .bg{position:absolute;inset:0;background-size:cover;background-position:center;transform:scale(1.08);transition:transform 1.8s cubic-bezier(.2,.7,.2,1)}
@@ -128,7 +118,7 @@ section::after{content:"";position:absolute;inset:0;background:linear-gradient(9
 .wrap{position:relative;z-index:2;width:100%;padding:130px 5vw 11vh}
 .kicker{font:500 12px/1 var(--body);letter-spacing:.32em;text-transform:uppercase;color:var(--accent);margin-bottom:22px;display:flex;align-items:center;gap:14px}
 .kicker::before{content:"";width:34px;height:1px;background:var(--accent)}
-h1,h2{font-family:var(--display);font-weight:700;letter-spacing:-.025em;line-height:.95}
+h1,h2{font-family:var(--display);font-weight:700;letter-spacing:-.025em;line-height:1.06}
 h1{font-size:clamp(52px,8.5vw,170px)}
 h2{font-size:clamp(38px,6.4vw,104px)}
 .cols{display:grid;grid-template-columns:1.25fr 1fr;gap:6vw;margin-top:46px;padding-top:36px;border-top:1px solid var(--line)}
@@ -1457,10 +1447,41 @@ ul.points li span{color:var(--accent)}
 #contact .contact-grid a:hover{color:var(--accent)!important}
 #contact footer{color:rgba(245,245,247,0.45)!important}
 
+/* ------------------------------------------------------------------
+   GALLERY — progressive loading + earlier section reveals
+   ------------------------------------------------------------------ */
+.gallery-loadmore{
+  display:flex;flex-direction:column;align-items:center;gap:14px;
+  margin-top:44px;padding-top:34px;border-top:1px solid var(--line);
+}
+.gallery-more-btn{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:15px 30px;border-radius:999px;
+  background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.18);
+  color:#f7f7f8;cursor:pointer;
+  font:600 11.5px/1 var(--body);letter-spacing:.16em;text-transform:uppercase;
+  transition:background .3s ease,border-color .3s ease,transform .3s ease,box-shadow .3s ease;
+}
+.gallery-more-btn[hidden]{display:none}
+.gallery-more-btn:hover{
+  background:var(--accent);border-color:var(--accent);
+  box-shadow:0 14px 34px rgba(232,86,42,.32);transform:translateY(-2px);
+}
+.gallery-more-btn svg{transition:transform .3s ease}
+.gallery-more-btn:hover svg{transform:translateY(2px)}
+.gallery-visible-count{
+  font:500 10px/1 var(--body);letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+}
+
+/* Reveal sooner and faster, so a section never reads as blank while scrolling */
+.r{transition-duration:.55s}
+section.in .r2{transition-delay:.1s}
+section.in .r3{transition-delay:.18s}
+section.in .r4{transition-delay:.26s}
 </style>
 </head>
 <body>
-<div class="progress" id="progress"></div>
 
 <header id="hdr">
   <a class="logo" href="#home">2<b>NOMADS</b></a>
@@ -2024,6 +2045,15 @@ ul.points li span{color:var(--accent)}
       </article>
 
     </div>
+
+    <!-- Progressive loading: keeps the photo wall short and scannable -->
+    <div class="gallery-loadmore" id="galleryLoadMore">
+      <button type="button" class="gallery-more-btn" id="galleryMoreBtn" aria-controls="galleryGrid">
+        <span id="galleryMoreLabel">Show 9 more photos</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+      <span class="gallery-visible-count" id="galleryVisibleCount">Showing 9 of 16</span>
+    </div>
   </div>
 </section>
 
@@ -2252,14 +2282,13 @@ function updateParallax() {
       }
     }
   });
+  revealSections();
   ticking = false;
 }
 
 // Combined scroll listener
 main.addEventListener('scroll', () => {
   hdr.classList.toggle('solid', main.scrollTop > 30);
-  const p = main.scrollTop / (main.scrollHeight - main.clientHeight);
-  document.getElementById('progress').style.width = (p * 100) + '%';
   updateActiveNav();
 
   if (!ticking) {
@@ -2299,11 +2328,25 @@ window.addEventListener('resize', () => {
   });
 })();
 
-// Scroll reveal observer
-const io = new IntersectionObserver(es => es.forEach(e => {
-  if (e.isIntersecting) e.target.classList.add('in');
-}), { root: main, threshold: 0.18 });
-sections.forEach(s => io.observe(s));
+// Scroll reveal — reveal a section as soon as it approaches the viewport.
+// A geometry check backs up the observer so content can never stay hidden
+// (which otherwise leaves a full-height section looking blank).
+function revealSections() {
+  const vh = main.clientHeight || window.innerHeight;
+  sections.forEach(s => {
+    if (s.classList.contains('in')) return;
+    const r = s.getBoundingClientRect();
+    if (r.top < vh * 0.94 && r.bottom > 0) s.classList.add('in');
+  });
+}
+if ('IntersectionObserver' in window) {
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) e.target.classList.add('in');
+  }), { root: main, threshold: 0, rootMargin: '0px 0px -6% 0px' });
+  sections.forEach(s => io.observe(s));
+}
+revealSections();
+window.addEventListener('load', revealSections);
 
 // ============================================================
 // GALLERY FILTERING & LIGHTBOX SYSTEM
@@ -2328,11 +2371,63 @@ sections.forEach(s => io.observe(s));
   let activeCards = [...cards];
   let activeIndex = 0;
 
+  // Progressive loading — keeps the photo wall short and scannable.
+  const PAGE_SIZE = 9;
+  let visibleLimit = PAGE_SIZE;
+  const loadMoreWrap = document.getElementById('galleryLoadMore');
+  const moreBtn = document.getElementById('galleryMoreBtn');
+  const moreLabel = document.getElementById('galleryMoreLabel');
+  const visibleCountEl = document.getElementById('galleryVisibleCount');
+
+  function applyGalleryView(animate) {
+    activeCards = [];
+    let matched = 0;
+    cards.forEach(card => {
+      const cat = card.dataset.category;
+      const matches = (currentFilter === 'all' || cat === currentFilter);
+      if (!matches) {
+        card.classList.add('g-hidden');
+        card.classList.remove('g-fade-in');
+        return;
+      }
+      matched++;
+      if (matched <= visibleLimit) {
+        const entering = card.classList.contains('g-hidden');
+        card.classList.remove('g-hidden');
+        if (animate && entering) {
+          card.classList.remove('g-fade-in');
+          void card.offsetWidth;
+          card.classList.add('g-fade-in');
+        }
+        activeCards.push(card);
+      } else {
+        card.classList.add('g-hidden');
+        card.classList.remove('g-fade-in');
+      }
+    });
+
+    const shown = Math.min(visibleLimit, matched);
+    if (visibleCountEl) {
+      visibleCountEl.textContent = matched ? 'Showing ' + shown + ' of ' + matched : 'No photos in this set';
+    }
+    if (moreBtn) {
+      const remaining = matched - shown;
+      moreBtn.hidden = remaining <= 0;
+      if (moreLabel) {
+        moreLabel.textContent = remaining > 0
+          ? 'Show ' + Math.min(PAGE_SIZE, remaining) + ' more photos'
+          : 'All photos shown';
+      }
+    }
+    if (loadMoreWrap) loadMoreWrap.classList.toggle('is-complete', matched <= shown);
+  }
+
   filterBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const filter = btn.dataset.filter;
       if (filter === currentFilter) return;
       currentFilter = filter;
+      visibleLimit = PAGE_SIZE;
 
       filterBtns.forEach(b => {
         const isActive = (b === btn);
@@ -2340,23 +2435,18 @@ sections.forEach(s => io.observe(s));
         b.setAttribute('aria-selected', isActive ? 'true' : 'false');
       });
 
-      activeCards = [];
-      cards.forEach(card => {
-        const cat = card.dataset.category;
-        const matches = (filter === 'all' || cat === filter);
-        if (matches) {
-          card.classList.remove('g-hidden');
-          card.classList.remove('g-fade-in');
-          void card.offsetWidth;
-          card.classList.add('g-fade-in');
-          activeCards.push(card);
-        } else {
-          card.classList.add('g-hidden');
-          card.classList.remove('g-fade-in');
-        }
-      });
+      applyGalleryView(true);
     });
   });
+
+  if (moreBtn) {
+    moreBtn.addEventListener('click', () => {
+      visibleLimit += PAGE_SIZE;
+      applyGalleryView(true);
+    });
+  }
+
+  applyGalleryView(false);
 
   function openLightbox(index) {
     if (index < 0 || index >= activeCards.length) return;
